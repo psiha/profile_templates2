@@ -1,0 +1,71 @@
+[article Template Profiler
+    [quickbook 1.4]
+    [authors [Watanabe, Steven]]
+    [copyright 2008 Steven Watanabe]
+    [license]
+    [license
+      Distributed under the Boost Software License, Version 1.0.
+      (See accompanying file LICENSE_1_0.txt or copy at
+      [@http://www.boost.org/LICENSE_1_0.txt])
+    ]
+    [purpose Count template instantiations]
+]
+
+[section Introduction]
+
+Many libraries in C++ rely heavily on template metaprogramming.
+Often, this can cause compilation to be very slow.  One
+of the reasons is that there is no easy way to determine
+what templates are taking up the compiler's time.  This means
+that when trying to optimize the template metaprogramming,
+programmers often have to fall back on guesswork and random
+tweaks.  This tool is an attempt to solve this problem,
+allowing programmers to find out what their template metaprograms
+are doing.
+
+[endsect]
+
+[section Usage]
+
+In order to use the template profiler, create
+a Jamfile which contains the following:
+
+[pre
+import template-profile ;
+template-profile foo : foo.cpp ;
+]
+
+[note You will need to make sure that the tool's root
+directory is in BOOST_BUILD_PATH, so that Boost.Build can
+find the template-profile module.
+]
+
+Now, running the command
+[pre
+bjam toolset=msvc
+]
+will create a file called foo.template-profile in
+the build directory.  This file will contain contain
+a list of all the lines that any class or function is
+defined on, and the corresponding number of times that
+this line is compiled.
+
+[note You may see non-template classes and functions in
+the output.  This is expected.  They should appear exactly once. ]
+
+[endsect]
+
+[section Internals]
+
+The template profiler can be broken down into
+the following steps.
+
+# Preprocess the source
+# Run the preprocessor's output through preprocess.pl
+  which adds code that generates a warning at the beginning
+  of every class and function.
+# compile the result and capture the compiler's output
+# Parse the compiler's output, searching for the warnings
+  inserted in stage 2.
+
+[endsect]

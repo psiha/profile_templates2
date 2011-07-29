@@ -1,0 +1,178 @@
+# template-profile.jam
+#
+# Copyright (c) 2008
+# Steven Watanabe
+#
+# Distributed under the Boost Software License, Version 1.0. (See
+# accompanying file LICENSE_1_0.txt or copy at
+# http://www.boost.org/LICENSE_1_0.txt)
+
+import feature ;
+import toolset ;
+import type ;
+import errors ;
+import path ;
+import modules ;
+import generators ;
+import "class" ;
+
+module-location = [ path.parent [ path.make [ modules.binding template-profile ] ] ] ;
+
+INSTRUMENT-ACTION = [ path.native [ path.join $(module-location) preprocess.pl ] ] ;
+INSTRUMENT-ACTION = perl \"$(INSTRUMENT-ACTION)\" ;
+
+type.register INSTRUMENTED_TEMPLATE_PREPROCESSED_CPP : : CPP ;
+type.register RAW_TEMPLATE_PROFILE : rtp ;
+type.register TEMPLATE_PROFILE : template-profile ;
+
+feature.feature <template-profile-toolset> : msvc gcc : free ;
+feature.feature <template-profile-filter> : : path incidental ;
+feature.feature <flat-profile> : on off : incidental propagated ;
+feature.feature <call-graph> : on off : incidental propagated ;
+
+rule init-toolset ( toolset ) {
+    toolset.flags $(toolset).compile.c++.preprocess INSTRUMENT-ACTION : $(INSTRUMENT-ACTION) : unchecked ;
+    toolset.flags $(toolset).compile.c++.template-profile FILTER <template-profile-filter> : : unchecked ;
+    toolset.flags $(toolset).compile.c++.template-profile FILTER-OPTIONS <call-graph>on : --call-graph : unchecked ;
+    generators.register-c-compiler $(toolset).compile.c++.preprocess : CPP : INSTRUMENTED_TEMPLATE_PREPROCESSED_CPP : <toolset>$(toolset) ;
+}
+
+module gcc {
+
+    import template-profile : init-toolset ;
+
+    template-profile.init-toolset gcc ;
+
+    actions compile.c++.preprocess {
+        $(CONFIG_COMMAND) $(OPTIONS) $(USER_OPTIONS) -D$(DEFINES) -I"$(INCLUDES)" -E "$(>)" | $(INSTRUMENT-ACTION) >"$(<)"
+    }
+
+    actions compile.c++.template-profile {
+        "$(CONFIG_COMMAND)" $(LANG) -ftemplate-depth-$(TEMPLATE_DEPTH) $(OPTIONS) $(USER_OPTIONS) -D$(DEFINES) -D PROFILE_TEMPLATES -I"$(INCLUDES)" -c "$(>:W)" 2>&1 | "$(FILTER)" $(FILTER-OPTIONS) >"$(<)"
+    }
+
+}
+
+module msvc {
+
+    import template-profile : init-toolset ;
+    template-profile.init-toolset msvc ;
+
+    actions compile.c++.preprocess {
+        $(.CC) @"@($(<[1]:W).rsp:E="$(>[1]:W)" -E $(lang-opt) -U$(UNDEFS) $(CFLAGS) $(C++FLAGS) $(OPTIONS) $(.nl)-D$(DEFINES) $(.nl)"-I$(INCLUDES:W)")" | $(INSTRUMENT-ACTION) >"$(<[1]:W)"
+    }
+
+    actions compile.c++.template-profile {
+        $(.CC) @"@($(<[1]:W).rsp:E="$(>[1]:W)" -c $(lang-opt) -U$(UNDEFS) $(CFLAGS) $(C++FLAGS) $(OPTIONS) -W4 $(.nl)-D$(DEFINES) -D PROFILE_TEMPLATES $(.nl)"-I$(INCLUDES:W)")" 2>&1 | "$(FILTER)" $(FILTER-OPTIONS) >"$(<)"
+    }
+
+}
+
+class warn-generator : generator {
+
+    import template-profile ;
+    import targets ;
+    import path ;
+    import modules ;
+
+    rule __init__ ( * : * ) {
+        generator.__init__ $(1) : $(2) : $(3) : $(4) : $(5) : $(6) : $(7) : $(8) : $(9) ;
+    }
+    rule run ( project name : properties : sources * : multiple ? ) {
+        local toolset = [ $(properties).get <toolset> ] ;
+        if ! $(toolset) {
+            errors.error "No toolset specified" ;
+        }
+        switch $(toolset) {
+            case msvc* :
+                toolset = msvc ;
+            case gcc* :
+                toolset = gcc ;
+            case * :
+                errors.error unrecognized toolset $(toolset) ;
+        }
+        local self-dir = [ modules.peek template-profile : module-location ] ;
+
+        current_path = [ modules.peek template-profile : module-location ] ;
+        local filter-main-target = [ targets.resolve-reference [ path.join $(current_path) src ] : $(project) ] ;
+        filter-main-target = [ $(filter-main-target[1]).main-target filter ] ;
+        local filter-binary-dependencies = [ $(filter-main-target).generate [ $(properties).propagated ] ] ;
+        filter-binary-dependencies = $(filter-binary-dependencies[2-]) ;
+        local filter-binary = ;
+
+        for local target in $(filter-binary-dependencies) {
+            if [ $(target).type ] = EXE {
+                filter-binary = 
+                    [ path.native 
+                        [ path.join
+                            [ $(target).path ]
+                            [ $(target).name ]
+                        ]
+                    ] ;
+            }
+        }
+
+        if ! $(filter-binary) {
+            errors.error Could not find filter binary ;
+        }
+
+        local new-properties = [ $(properties).add-raw <dependency>$(filter-binary-dependencies) <template-profile-filter>$(filter-binary) <include>$(self-dir) ] ;
+
+        return [ generator.run $(project) $(name) : $(new-properties)  : $(sources) : $(multiple) ] ;
+    }
+}
+
+generators.register [ class.new warn-generator msvc.compile.c++.template-profile : INSTRUMENTED_TEMPLATE_PREPROCESSED_CPP : RAW_TEMPLATE_PROFILE : <toolset>msvc ] ;
+generators.register [ class.new warn-generator gcc.compile.c++.template-profile : INSTRUMENTED_TEMPLATE_PREPROCESSED_CPP : RAW_TEMPLATE_PROFILE : <toolset>gcc ] ;
+
+class final-profile-generator : generator {
+
+    import targets ;
+    import template-profile ;
+    import path ;
+    import modules ;
+
+    rule __init__ ( ) {
+        generator.__init__ template-profile.process-raw-profile : RAW_TEMPLATE_PROFILE : TEMPLATE_PROFILE ;
+    }
+    rule run ( project name : properties : sources * : multiple ? ) {
+
+        current_path = [ modules.peek template-profile : module-location ] ;
+
+        local postprocess-main-target = [ targets.resolve-reference [ path.join $(current_path) src ] : $(project) ] ;
+        postprocess-main-target = [ $(postprocess-main-target[1]).main-target postprocess ] ;
+        local postprocess-binary-dependencies = [ $(postprocess-main-target).generate [ $(properties).propagated ] ] ;
+        postprocess-binary-dependencies = $(postprocess-binary-dependencies[2-]) ;
+        local postprocess-binary = ;
+
+        for local target in $(postprocess-binary-dependencies) {
+            if [ $(target).type ] = EXE {
+                postprocess-binary = 
+                    [ path.native 
+                        [ path.join
+                            [ $(target).path ]
+                            [ $(target).name ]
+                        ]
+                    ] ;
+            }
+        }
+
+        if ! $(postprocess-binary) {
+            errors.error Could not find postprocessor binary ;
+        }
+
+        local new-properties = [ $(properties).add-raw <dependency>$(postprocess-binary-dependencies) <postprocess-binary>$(postprocess-binary) ] ;
+        return [ generator.run $(project) $(name) : $(new-properties) : $(sources) : $(multiple) ] ;
+    }
+}
+
+generators.register [ class.new final-profile-generator ] ;
+
+feature.feature <postprocess-binary> : : path incidental ;
+
+toolset.flags template-profile.process-raw-profile POSTPROCESS-BINARY <postprocess-binary> ;
+toolset.flags template-profile.process-raw-profile POSTPROCESS-OPTIONS <call-graph>on : --call-graph ;
+
+actions process-raw-profile {
+    "$(POSTPROCESS-BINARY)" $(POSTPROCESS-OPTIONS) "$(>)" >"$(<)"
+}
