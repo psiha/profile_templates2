@@ -1,17 +1,30 @@
-// filter.cpp
-//
-// Copyright (c) 2008-2009
-// Steven Watanabe
-// 
-// Distributed under the Boost Software License, Version 1.0. (See
-// accompanying file LICENSE_1_0.txt or copy at
-// http://www.boost.org/LICENSE_1_0.txt)
-
+////////////////////////////////////////////////////////////////////////////////
+///
+/// filter.cpp
+/// ----------
+///
+/// Copyright (c) 2008-2009 Steven Watanabe
+/// Copyright (c) 2011      Domagoj Saric
+///
+///  Use, modification and distribution is subject to the Boost Software License, Version 1.0.
+///  (See accompanying file LICENSE_1_0.txt or copy at
+///  http://www.boost.org/LICENSE_1_0.txt)
+///
+/// For more information, see http://www.boost.org
+///
+////////////////////////////////////////////////////////////////////////////////
+//------------------------------------------------------------------------------
 #undef BOOST_ENABLE_ASSERT_HANDLER
+
+#include "filter.hpp"
 
 #include <string>
 #include <cstdio>
 #include <cstring>
+//------------------------------------------------------------------------------
+namespace boost
+{
+//------------------------------------------------------------------------------
 
 const char* search("template_profiler");
 
@@ -136,3 +149,7 @@ void copy_call_graph() {
     #error Unknown compiler
 #endif
 }
+
+//------------------------------------------------------------------------------
+} // namespace boost
+//------------------------------------------------------------------------------

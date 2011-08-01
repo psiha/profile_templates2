@@ -1,19 +1,29 @@
-// postprocess.cpp
-//
-// Copyright (c) 2008-2009
-// Steven Watanabe
-// 
-// Distributed under the Boost Software License, Version 1.0. (See
-// accompanying file LICENSE_1_0.txt or copy at
-// http://www.boost.org/LICENSE_1_0.txt)
-
+////////////////////////////////////////////////////////////////////////////////
+///
+/// postprocess.cpp
+/// ---------------
+///
+/// Copyright (c) 2008-2009 Steven Watanabe
+/// Copyright (c) 2011      Domagoj Saric
+///
+///  Use, modification and distribution is subject to the Boost Software License, Version 1.0.
+///  (See accompanying file LICENSE_1_0.txt or copy at
+///  http://www.boost.org/LICENSE_1_0.txt)
+///
+/// For more information, see http://www.boost.org
+///
+////////////////////////////////////////////////////////////////////////////////
+//------------------------------------------------------------------------------
 #undef BOOST_ENABLE_ASSERT_HANDLER
+
+#include "postprocess.hpp"
 
 #include <boost/regex.hpp>
 #include <boost/foreach.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/numeric/conversion/cast.hpp>
 #include <boost/ptr_container/ptr_vector.hpp>
+
 #include <string>
 #include <iostream>
 #include <fstream>
@@ -24,6 +34,10 @@
 #include <algorithm>
 #include <iomanip>
 #include <vector>
+//------------------------------------------------------------------------------
+namespace boost
+{
+//------------------------------------------------------------------------------
 
 #ifdef _MSC_VER
 
@@ -283,3 +297,7 @@ int postprocess(int argc, char** argv) {
         }
     }
 }
+
+//------------------------------------------------------------------------------
+} // namespace boost
+//------------------------------------------------------------------------------
