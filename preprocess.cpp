@@ -52,16 +52,23 @@ namespace regex
         ;
         return parens;
     }
-    
-    cregex const backslashed_lines = keep( keep( *( '\\' >> keep( _ln ) | _ ) ) );
-    cregex const string            = cregex::compile( "(?>\"(?>\\\\|\\\"|[^\"])*\"|'(?>\\\\|\\'|[^'])*')" );
-    cregex const comment           = keep( "//" >> backslashed_lines | "/*" >> keep( *( ~(set='*') | '*' >> ~before('/') ) ) >> "*/" );
-    cregex const pp                = keep( '#' >> backslashed_lines );
+
+    //cregex const backslashed_lines = keep( keep( *( '\\' >> keep( _ln ) | ~_ln ) ) ); //...zzz...!?
+    cregex const string            = keep( '"' >> *keep( as_xpr( "\\\\" ) | "\\\"" | ~(set='"') ) >> '"' | '\'' >> *keep( as_xpr( "\\\\" ) | "\\'" | ~(set='\'') ) >> '\'' );
+    cregex const comment           = keep( "//" /*>> backslashed_lines*/ | "/*" >> keep( *( ~(set='*') | '*' >> ~before('/') ) ) >> "*/" );
+    cregex const pp                = keep( '#' >> /*backslashed_lines*/ -*~_ln >> _ln );
     cregex const ignored           = keep( string | comment | pp );
     cregex const parens            = make_parens();
     cregex const ws                = comment | pp | _s | _ln;
 
-    cregex const class_header = keep( keep( _b >> ( as_xpr( "class" ) | "struct" ) ) >> keep( +ws >> +_w ) >> keep( *keep( ~(set= '(',')','{',';','=') | parens | ignored ) ) >> '{' );
+    cregex const class_header =
+        keep
+        (
+            keep( _b >> ( as_xpr( "class" ) | "struct" ) ) >>
+            keep( +ws >> +_w                             ) >>
+            keep( *keep( ~(set= '(',')','{',';','=') | parens | ignored ) ) >>
+            '{'
+        );
 
     cregex const control    = ( _b >> ( as_xpr( "__attribute__" ) | "__if_exists" | "__if_not_exists" | "for" | "while" | "if" | "catch" | "switch" ) >> _b );
     cregex const modifiers  = ( _b >> ( as_xpr( "try" ) | "const" | "volatile" ) >> _b );
@@ -127,18 +134,6 @@ struct formatter : boost::noncopyable
                 break;
         }
 
-        if ( match_type != header )
-        {
-            //...zzz...definitions where the opening brace is on the next line are not getting caught...
-            static char const class_ [] = "class";
-            static char const struct_[] = "struct";
-            BOOST_ASSERT( std::find_end( match.first, match.second, boost::begin( class_  ), boost::end( class_  ) - 1 ) == match.second );
-            BOOST_ASSERT( std::find_end( match.first, match.second, boost::begin( struct_ ), boost::end( struct_ ) - 1 ) == match.second );
-            std::string const mstr( match.str() );
-            BOOST_ASSERT( !std::strstr( mstr.c_str(), class_ ) );
-            BOOST_ASSERT( !std::strstr( mstr.c_str(), struct_ ) );
-        }
-
         return out;
     }
 
@@ -177,20 +172,19 @@ int main( int const argc, char * * const argv )
 
         std::ofstream output( "preprocessed.cpp" );
         output << "#include <template_profiler.hpp>\n" << std::endl;
-        std::ostream_iterator<char> out_iter( output );
 
-        formatter fmt;
-
-        while ( input.begin() < input.end() )
-        {
-            char const * /*const*/ p_endl( std::find( input.begin(), input.end(), '\n' ) );
-            std::size_t const line_length( p_endl - input.begin() );
-
-            out_iter = regex_replace( out_iter, input.begin(), p_endl, main_regex, fmt );
-
-            *out_iter++ = *p_endl++;
-            input = iterator_range<char const *>( p_endl, input.end() );
-        }
+        // Implementation note:
+        //   The whole file has to be searched at once in order to handle class/
+        // function definitions over several lines.
+        //                                    (01.08.2011.) (Domagoj Saric)
+        regex_replace
+        (
+            std::ostream_iterator<char>( output ),
+            input.begin(),
+            input.end(),
+            main_regex,
+            formatter()
+        );
 
         return EXIT_SUCCESS;
     }
