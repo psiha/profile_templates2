@@ -12,20 +12,24 @@
 ################################################################################
 
 ################################################################################
-# Add the target to build filter and postprocess
+# Add the target to build profiler
 ################################################################################
-FIND_FILE(PROFILER_PATH profiler ${CMAKE_MODULE_PATH})
+find_file(PROFILER_PATH profiler ${CMAKE_MODULE_PATH})
 
-ADD_EXECUTABLE(template.profiler.filter ${PROFILER_PATH}/filter.cpp)
-set_property(TARGET template.profiler.filter PROPERTY RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/tools)
-
-INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
-ADD_EXECUTABLE(template.profiler.preprocess ${PROFILER_PATH}/preprocess.cpp)
-set_property(TARGET template.profiler.preprocess PROPERTY RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/tools)
-ADD_EXECUTABLE(template.profiler.postprocess ${PROFILER_PATH}/postprocess.cpp)
-set_property(TARGET template.profiler.postprocess PROPERTY RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/tools)
+include_directories( ${Boost_INCLUDE_DIRS} )
+add_executable(
+    template.profiler
+    ${PROFILER_PATH}/src/preprocess.cpp
+    ${PROFILER_PATH}/src/preprocess.hpp
+    ${PROFILER_PATH}/src/filter.cpp
+    ${PROFILER_PATH}/src/filter.hpp
+    ${PROFILER_PATH}/src/postprocess.cpp
+    ${PROFILER_PATH}/src/postprocess.hpp
+    ${PROFILER_PATH}/src/profiler.cpp
+)
+set_property(TARGET template.profiler PROPERTY RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/tools)
 if (NOT MSVC) # Use autolink for MSVC
-    target_link_libraries(template.profiler.postprocess ${Boost_LIBRARIES})
+    target_link_libraries(template.profiler ${Boost_LIBRARIES})
 endif()
 
 ################################################################################
@@ -47,21 +51,22 @@ function(template_profile target src)
   foreach(INCLUDE ${INCLUDES})
     set(INCLUDE_DIRECTORIES "${INCLUDE_DIRECTORIES} -I\"${INCLUDE}\"" )
   endforeach()
-  message( "${CMAKE_CXX_COMPILER} ${profiler_cxx_flags} ${INCLUDE_DIRECTORIES} -E \"${CMAKE_CURRENT_SOURCE_DIR}/${src}\" > ${target}.compiler.preprocessed.cpp && \"${PROJECT_BINARY_DIR}/tools/${CMAKE_CFG_INTDIR}/template.profiler.preprocess\" ${target}.compiler.preprocessed.cpp > ${target}.preprocessed.cpp" )
-  add_custom_command(OUTPUT ${target}.preprocessed.cpp
-                     COMMAND ${CMAKE_CXX_COMPILER} ${profiler_cxx_flags} ${INCLUDE_DIRECTORIES} -E "${CMAKE_CURRENT_SOURCE_DIR}/${src}" > ${target}.compiler.preprocessed.cpp
-                           && \"${PROJECT_BINARY_DIR}/tools/${CMAKE_CFG_INTDIR}/template.profiler.preprocess\" ${target}.compiler.preprocessed.cpp > ${target}.preprocessed.cpp
+
+  if ( NOT EXISTS ${CMAKE_CXX_COMPILER} )
+    if ( MSVC )
+      get_filename_component( devenv_path ${CMAKE_MAKE_PROGRAM} PATH )
+      set( full_compiler_path "${devenv_path}/../../VS/bin/${CMAKE_CXX_COMPILER}" )
+      file( TO_NATIVE_PATH ${full_compiler_path} full_compiler_path )
+      set( ENV{PATH} "$ENV{PATH};$(ExecutablePath)" )
+    elseif()
+      find_program( full_compiler_path "${CMAKE_CXX_COMPILER}" )
+    endif()
+  endif()
+
+  add_custom_command(OUTPUT ${target}.template_profile
+                     COMMAND echo "${profiler_cxx_flags} ${INCLUDE_DIRECTORIES}" > ${target}.compiler_options.rsp
+                     COMMAND "${PROJECT_BINARY_DIR}/tools/${CMAKE_CFG_INTDIR}/template.profiler" "${full_compiler_path}" ${target}.compiler_options.rsp "${CMAKE_CURRENT_SOURCE_DIR}/${src}"
                      DEPENDS ${src}
                    )
-  add_custom_command(OUTPUT ${target}.template_profile
-                     COMMAND ${CMAKE_CXX_COMPILER} ${profiler_cxx_flags} -I${PROFILER_PATH} ${INCLUDE_DIRECTORIES} -c -DPROFILE_TEMPLATES ${target}.preprocessed.cpp 2>&1
-                           | \"${PROJECT_BINARY_DIR}/tools/${CMAKE_CFG_INTDIR}/template.profiler.filter\" ${ARGN} > ${target}.filtered && \"${PROJECT_BINARY_DIR}/tools/${CMAKE_CFG_INTDIR}/template.profiler.postprocess\" ${ARGN} ${target}.filtered > ${target}.template_profile
-                     DEPENDS ${target}.preprocessed.cpp
-                             template.profiler.preprocess
-                             template.profiler.filter
-                             template.profiler.postprocess 
-                    )
-  add_custom_target (${target}
-                     DEPENDS ${target}.template_profile
-                    )
+  add_custom_target( ${target} DEPENDS ${target}.template_profile )
 endfunction()

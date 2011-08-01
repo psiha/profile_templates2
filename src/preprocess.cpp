@@ -140,59 +140,42 @@ struct formatter : boost::noncopyable
 };
 
 
-int main( int const argc, char * * const argv )
+void preprocess( char const * const p_filename )
 {
-    if ( argc != 2 )
-        return EXIT_FAILURE;
+    using namespace boost;
 
-    try
-    {
-        using namespace boost;
-
-        interprocess::mapped_region const input_file_view
+    interprocess::mapped_region const input_file_view
+    (
+        interprocess::file_mapping
         (
-            interprocess::file_mapping
-            (
-                argv[ 1 ],
-                interprocess::read_only
-            ),
+            p_filename,
             interprocess::read_only
-        );
+        ),
+        interprocess::read_only
+    );
 
-        iterator_range<char const *> input
-        (
-            static_cast<char const *>( input_file_view.get_address() ),
-            static_cast<char const *>( input_file_view.get_address() ) + input_file_view.get_size()
-        );
+    iterator_range<char const *> input
+    (
+        static_cast<char const *>( input_file_view.get_address() ),
+        static_cast<char const *>( input_file_view.get_address() ) + input_file_view.get_size()
+    );
 
-        using namespace regex;
-        cregex const main_regex( (s1= ignored) | (s2=keep( class_header | function_header )) | (s3='{') | (s4='}') );
-        match_results<char const *> search_results;
+    using namespace regex;
+    cregex const main_regex( (s1= ignored) | (s2=keep( class_header | function_header )) | (s3='{') | (s4='}') );
+    match_results<char const *> search_results;
 
-        std::cout << "#include <template_profiler.hpp>\n" << std::endl;
+    std::cout << "#include <template_profiler.hpp>\n" << std::endl;
 
-        // Implementation note:
-        //   The whole file has to be searched at once in order to handle class/
-        // function definitions over several lines.
-        //                                    (01.08.2011.) (Domagoj Saric)
-        regex_replace
-        (
-            std::ostream_iterator<char>( std::cout ),
-            input.begin(),
-            input.end(),
-            main_regex,
-            formatter()
-        );
-
-        return EXIT_SUCCESS;
-    }
-    catch ( std::exception const & e )
-    {
-        std::puts( e.what() );
-        return EXIT_FAILURE;
-    }
-    catch ( ... )
-    {
-        return EXIT_FAILURE;
-    }
+    // Implementation note:
+    //   The whole file has to be searched at once in order to handle class/
+    // function definitions over several lines.
+    //                                    (01.08.2011.) (Domagoj Saric)
+    regex_replace
+    (
+        std::ostream_iterator<char>( std::cout ),
+        input.begin(),
+        input.end(),
+        main_regex,
+        formatter()
+    );
 }

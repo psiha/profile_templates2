@@ -7,6 +7,8 @@
 // accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
 
+#undef BOOST_ENABLE_ASSERT_HANDLER
+
 #include <boost/regex.hpp>
 #include <boost/foreach.hpp>
 #include <boost/lexical_cast.hpp>
@@ -150,7 +152,7 @@ private:
     node root;
 };
 
-int main(int argc, char** argv) {
+int postprocess(int argc, char** argv) {
     const char* input_file_name = 0;
     bool use_call_graph = false;
     for(int i = 1; i < argc; ++i) {

@@ -7,6 +7,8 @@
 // accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
 
+#undef BOOST_ENABLE_ASSERT_HANDLER
+
 #include <string>
 #include <cstdio>
 #include <cstring>
@@ -133,12 +135,4 @@ void copy_call_graph() {
 #else
     #error Unknown compiler
 #endif
-}
-
-int main(int argc, char** argv) {
-    if(argc == 2 && std::strcmp(argv[1], "--call-graph") == 0) {
-        copy_call_graph();
-    } else {
-        copy_flat_only();
-    }
 }
