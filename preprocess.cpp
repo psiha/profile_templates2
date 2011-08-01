@@ -29,7 +29,6 @@
 #include <cassert>
 #include <iterator>
 #include <iostream>
-#include <fstream>
 //------------------------------------------------------------------------------
 
 namespace regex
@@ -170,8 +169,7 @@ int main( int const argc, char * * const argv )
         cregex const main_regex( (s1= ignored) | (s2=keep( class_header | function_header )) | (s3='{') | (s4='}') );
         match_results<char const *> search_results;
 
-        std::ofstream output( "preprocessed.cpp" );
-        output << "#include <template_profiler.hpp>\n" << std::endl;
+        std::cout << "#include <template_profiler.hpp>\n" << std::endl;
 
         // Implementation note:
         //   The whole file has to be searched at once in order to handle class/
@@ -179,7 +177,7 @@ int main( int const argc, char * * const argv )
         //                                    (01.08.2011.) (Domagoj Saric)
         regex_replace
         (
-            std::ostream_iterator<char>( output ),
+            std::ostream_iterator<char>( std::cout ),
             input.begin(),
             input.end(),
             main_regex,
