@@ -14,11 +14,12 @@
 ################################################################################
 # Add the target to build profiler
 ################################################################################
-find_file(PROFILER_PATH profiler ${CMAKE_MODULE_PATH})
+find_path( PROFILER_PATH profiler.cmake ${CMAKE_MODULE_PATH} )
 
 include_directories( ${Boost_INCLUDE_DIRS} )
 add_executable(
     template.profiler
+    EXCLUDE_FROM_ALL
     ${PROFILER_PATH}/src/filter.cpp
     ${PROFILER_PATH}/src/filter.hpp
     ${PROFILER_PATH}/src/postprocess.cpp
@@ -28,6 +29,7 @@ add_executable(
     ${PROFILER_PATH}/src/profiler.cpp
 )
 set_property( TARGET template.profiler PROPERTY RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/tools )
+set_property( TARGET template.profiler PROPERTY EXCLUDE_FROM_DEFAULT_BUILD 1 )
 if ( MSVC )
     # A workaround for Xpressive stack overflows
     set_property( TARGET template.profiler APPEND PROPERTY LINK_FLAGS /STACK:32000000 )
@@ -43,7 +45,7 @@ function(template_profile target src)
     if(CMAKE_GENERATOR MATCHES "Make")
         set( profiler_cxx_flags ${CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE}} )
     else()
-        set( profiler_cxx_flags ${CMAKE_CXX_F  LAGS_DEBUG} )
+        set( profiler_cxx_flags ${CMAKE_CXX_FLAGS_DEBUG} )
     endif()
   
     # Suppress linking.
