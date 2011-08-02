@@ -78,7 +78,10 @@ function(template_profile target src)
         OUTPUT ${target}.template_profile
         COMMAND echo "${profiler_cxx_flags} ${INCLUDE_DIRECTORIES}" > "${PROJECT_BINARY_DIR}/${target}.compiler_options.rsp"
         COMMAND "${PROJECT_BINARY_DIR}/tools/${CMAKE_CFG_INTDIR}/template.profiler" "${full_compiler_path}" "${response_file_path}" "${CMAKE_CURRENT_SOURCE_DIR}/${src}" "${target}.template_profile"
-        DEPENDS ${src} template.profiler
+        DEPENDS ${src}
     )
+    
     add_custom_target( ${target} DEPENDS ${target}.template_profile )
+    
+    add_dependencies( ${target} template.profiler )
 endfunction()
