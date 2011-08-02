@@ -46,26 +46,26 @@ namespace expressions
 
         #pragma warning(disable:4512)
 
-        sregex const enter_message      ( (*~_n) >> " : warning C4150: deletion of pointer to incomplete type 'template_profiler::incomplete_enter'; no destructor called" );
-        sregex const exit_message       ( (*~_n) >> " : warning C4150: deletion of pointer to incomplete type 'template_profiler::incomplete_exit'; no destructor called"  );
-        sregex const call_graph_line    ( "        " >> (*~_n) >> '(' >> +_d >> ')' >> " : see reference to " >> (*~_n) );
-        sregex const split_file_and_line( (*~_n) >> '(' >> +_d >> ')' );
+        sregex const enter_message      ( (s1= *_) >> " : warning C4150: deletion of pointer to incomplete type 'template_profiler::incomplete_enter'; no destructor called" );
+        sregex const exit_message       ( (s1= *_) >> " : warning C4150: deletion of pointer to incomplete type 'template_profiler::incomplete_exit'; no destructor called"  );
+        sregex const call_graph_line    ( "        " >> (s1= *_) >> '(' >> ( s2= +_d ) >> ')' >> " : see reference to " >> *_ );
+        sregex const split_file_and_line( (s1= *_) >> '(' >> ( s2= +_d ) >> ')' );
 
     #elif defined(__GNUC__)
 
         #if (__GNUC__ < 4) || (__GNUC_MINOR__ < 3)
 
-            sregex const enter_message      ("(.*): warning: division by zero in .template_profiler::enter_value / 0.");
-            sregex const exit_message       ("(.*): warning: division by zero in .template_profiler::exit_value / 0.");
-            sregex const call_graph_line    ("(.*):(\\d+):   instantiated from .*");
-            sregex const split_file_and_line("(.*):(\\d+)");
+            sregex const enter_message      (sregex::compile( "(.*): warning: division by zero in .template_profiler::enter_value / 0."));
+            sregex const exit_message       (sregex::compile( "(.*): warning: division by zero in .template_profiler::exit_value / 0." ));
+            sregex const call_graph_line    (sregex::compile( "(.*):(\\d+):   instantiated from .*"                                    ));
+            sregex const split_file_and_line(sregex::compile( "(.*):(\\d+)"                                                            ));
 
         #else
 
-            sregex const enter_message      ("(.*): warning: .+int template_profiler::enter\\(int\\).*");
-            sregex const exit_message       ("(.*): warning: .+int template_profiler::exit\\(int\\).*");
-            sregex const call_graph_line    ("(.*):(\\d+):   instantiated from .*");
-            sregex const split_file_and_line("(.*):(\\d+)");
+            sregex const enter_message      (sregex::compile( "(.*): warning: .+int template_profiler::enter\\(int\\).*"));
+            sregex const exit_message       (sregex::compile( "(.*): warning: .+int template_profiler::exit\\(int\\).*" ));
+            sregex const call_graph_line    (sregex::compile( "(.*):(\\d+):   instantiated from .*"                     ));
+            sregex const split_file_and_line(sregex::compile( "(.*):(\\d+)"                                             ));
 
         #endif
 
