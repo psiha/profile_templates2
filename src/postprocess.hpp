@@ -21,7 +21,11 @@ namespace boost
 {
 //------------------------------------------------------------------------------
 
-void postprocess();
+void postprocess
+(
+    char const * input_file_name,
+    char const * output_file_name
+);
 
 //------------------------------------------------------------------------------
 } // namespace boost

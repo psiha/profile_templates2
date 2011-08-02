@@ -26,102 +26,133 @@ namespace boost
 {
 //------------------------------------------------------------------------------
 
-const char* search("template_profiler");
+namespace
+{
+    char const search[] = "template_profiler";
 
-#if defined(_MSC_VER)
-    const char* back_trace_search("see reference to");
-#elif defined(__GNUC__)
-    const char* back_trace_search("instantiated from");
-#else
-    #error only Microsoft and gcc are supported.
-#endif
+    char const back_trace_search[] = 
+    #if defined( _MSC_VER )
+        "see reference to";
+    #elif defined( __GNUC__ )
+        "instantiated from";
+    #else
+        #error only Microsoft and gcc are supported.
+    #endif
+} // anonymous namespace
 
-void copy_flat_only() {
+void copy_flat_only( std::string const & input, std::string & output )
+{
+    output.reserve( input.size() );
+
+    unsigned int pos    (     0 );
+    unsigned int counter(     0 );
+    bool         matched( false );
+
     std::string buffer;
-    int ch;
-    int pos = 0;
-    bool matched = false;
-    int counter = 0;
-    while((ch = std::getchar()) != EOF) {
-        buffer.push_back(static_cast<char>(ch));
-        if(ch == '\n') {
-            if(matched) {
-                for(std::size_t i = 0; i < buffer.size(); ++i) {
-                    std::putchar(buffer[i]);
-                }
+
+    std::string::const_iterator       p_ch     ( input.begin() );
+    std::string::const_iterator const input_end( input.end  () );
+
+    while ( p_ch != input_end )
+    {
+        char const ch( *p_ch++ );
+        buffer.push_back( ch );
+        if ( ch == '\n' )
+        {
+            if ( matched )
+            {
+                output.append( buffer );
                 ++counter;
-#ifdef _MSC_VER
-                if(counter % 400 == 0) {
-                    std::fprintf(stderr, "On Instantiation %d\n", counter/4);
-                }
-#else
-                if(counter % 200 == 0) {
-                    std::fprintf(stderr, "On Instantiation %d\n", counter/2);
-                }
-#endif
+                #ifdef _MSC_VER
+                    if ( counter % 400 == 0 ) std::fprintf( stderr, "On Instantiation %d\n", counter/4 );
+                #else
+                    if ( counter % 200 == 0 ) std::fprintf( stderr, "On Instantiation %d\n", counter/2 );
+                #endif
             }
             buffer.clear();
             matched = false;
         }
-        if(ch == search[pos]) {
+        if ( ch == search[ pos ] )
+        {
             ++pos;
-            if(search[pos] == '\0') {
+            if ( search[ pos ] == '\0' )
+            {
                 matched = true;
             }
-        } else {
+        }
+        else
+        {
             pos = 0;
         }
     }
 }
 
-void copy_call_graph() {
+void copy_call_graph( std::string const & input, std::string & output )
+{
 #if defined(_MSC_VER) && 0
+    output.reserve( input.size() );
+
+    unsigned int pos    (     0 );
+    unsigned int counter(     0 );
+    bool         matched( false );
+
     std::string buffer;
-    int ch;
-    int pos = 0;
-    bool matched = false;
-    int counter = 0;
-    while((ch = std::getchar()) != EOF) {
-        buffer.push_back(static_cast<char>(ch));
-        if(ch == '\n') {
-            if(matched) {
-                for(std::size_t i = 0; i < buffer.size(); ++i) {
-                    std::putchar(buffer[i]);
-                }
-                if(++counter % 200 == 0) {
-                    std::fprintf(stderr, "On Instantiation %d\n", counter/2);
-                }
+
+    std::string::const_iterator       p_ch     ( input.begin() );
+    std::string::const_iterator const input_end( input.end  () );
+
+    while ( p_ch != input_end )
+    {
+        char const ch( *p_ch++ );
+        buffer.push_back( ch );
+        if ( ch == '\n' )
+        {
+            if ( matched )
+            {
+                output.append( buffer );
+                if ( ++counter % 200 == 0 ) std::fprintf( stderr, "On Instantiation %d\n", counter/2 );
                 buffer.clear();
                 matched = false;
                 // process instantiation back-trace
                 pos = 0;
-                while((ch = std::getchar()) != EOF) {
-                    if(ch == ' ') {
-                        buffer.push_back(static_cast<char>(ch));
-                        while((ch = std::getchar()) != EOF) {
-                            buffer.push_back(static_cast<char>(ch));
-                            if(ch == '\n') {
-                                if(matched) {
-                                    for(std::size_t i = 0; i < buffer.size(); ++i) {
-                                        std::putchar(buffer[i]);
-                                    }
+                while ( p_ch != input_end )
+                {
+                    char const ch( *p_ch++ );
+                    if ( ch == ' ' )
+                    {
+                        buffer.push_back( ch );
+                        while ( p_ch != input_end )
+                        {
+                            char const ch( *p_ch++ );
+                            buffer.push_back( ch );
+                            if ( ch == '\n' )
+                            {
+                                if ( matched )
+                                {
+                                    output.append( buffer );
                                 }
                                 buffer.clear();
                                 matched = false;
                                 pos = 0;
                                 break;
                             }
-                            if(ch == back_trace_search[pos]) {
+                            if ( ch == back_trace_search[ pos ] )
+                            {
                                 ++pos;
-                                if(back_trace_search[pos] == '\0') {
+                                if ( back_trace_search[ pos ] == '\0' )
+                                {
                                     matched = true;
                                 }
-                            } else {
+                            }
+                            else
+                            {
                                 pos = 0;
                             }
                         }
-                    } else {
-                        std::ungetc(ch, stdin);
+                    }
+                    else
+                    {
+                        --p_ch;
                         break;
                     }
                 }
@@ -130,21 +161,22 @@ void copy_call_graph() {
             matched = false;
             pos = 0;
         }
-        if(ch == search[pos]) {
+        if ( ch == search[ pos ] )
+        {
             ++pos;
-            if(search[pos] == '\0') {
+            if ( search[ pos ] == '\0' )
+            {
                 matched = true;
             }
-        } else {
+        }
+        else
+        {
             pos = 0;
         }
     }
 #elif defined(__GNUC__) || 1
     // trying to figure out what we should copy is too hard.
-    int ch;
-    while((ch = std::getchar()) != EOF) {
-        std::putchar(ch);
-    }
+    output = input;
 #else
     #error Unknown compiler
 #endif

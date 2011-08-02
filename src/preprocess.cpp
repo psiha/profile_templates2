@@ -19,6 +19,8 @@
 
 #define BOOST_XPRESSIVE_USE_C_TRAITS
 
+#include "preprocess.hpp"
+
 #include "boost/assert.hpp"
 #include "boost/concept_check.hpp"
 #include "boost/interprocess/file_mapping.hpp"
@@ -26,9 +28,10 @@
 #include "boost/range/iterator_range_core.hpp"
 #include "boost/xpressive/xpressive.hpp"
 
-#include <cassert>
 #include <iterator>
-#include <iostream>
+//------------------------------------------------------------------------------
+namespace boost
+{
 //------------------------------------------------------------------------------
 
 namespace regex
@@ -37,7 +40,8 @@ namespace regex
 
     cregex make_parens()
     {
-        cregex parens;// parens      = keep( '(' >> *keep( keep( +keep( ignored | ~(set= '(',')') ) | ( -!by_ref( parens ) ) ) ) >> ')' );
+        cregex parens; //parens = keep( '(' >> *keep( keep( +keep( ignored | ~(set= '(',')') ) | ( -!by_ref( parens ) ) ) ) >> ')' );
+        // Example from Xpressive documentation:
         parens =
         '('                            // is an opening parenthesis ...
          >>                           // followed by ...
@@ -77,7 +81,7 @@ namespace regex
     cregex const body_start = keep( *ws >> *(modifiers >> *ws) >> '{' );
 
     cregex const function_header = keep( start >> ( *body >> end ) >> body_start );
-}
+} // namespace regex
 
 struct formatter : boost::noncopyable
 {
@@ -113,7 +117,7 @@ struct formatter : boost::noncopyable
             {
                 braces.push_back( " TEMPLATE_PROFILE_EXIT() }" );
                 static char const tail[] = " TEMPLATE_PROFILE_ENTER()";
-                out = std::copy( match.first      , match.second       , out );
+                out = std::copy( match.first         , match.second          , out );
                 out = std::copy( boost::begin( tail ), boost::end( tail ) - 1, out );
                 break;
             }
@@ -140,7 +144,7 @@ struct formatter : boost::noncopyable
 };
 
 
-void preprocess( char const * const p_filename )
+void preprocess( char const * const p_filename, std::string & buffer )
 {
     using namespace boost;
 
@@ -154,17 +158,20 @@ void preprocess( char const * const p_filename )
         interprocess::read_only
     );
 
+    buffer.reserve( input_file_view.get_size() );
+
     iterator_range<char const *> input
     (
         static_cast<char const *>( input_file_view.get_address() ),
         static_cast<char const *>( input_file_view.get_address() ) + input_file_view.get_size()
     );
 
+    regex::match_results<char const *> search_results;
     using namespace regex;
     cregex const main_regex( (s1= ignored) | (s2=keep( class_header | function_header )) | (s3='{') | (s4='}') );
-    match_results<char const *> search_results;
 
-    std::cout << "#include <template_profiler.hpp>\n" << std::endl;
+    BOOST_ASSERT( buffer.empty() );
+    buffer = "#include <template_profiler.hpp>\n";
 
     // Implementation note:
     //   The whole file has to be searched at once in order to handle class/
@@ -172,10 +179,14 @@ void preprocess( char const * const p_filename )
     //                                    (01.08.2011.) (Domagoj Saric)
     regex_replace
     (
-        std::ostream_iterator<char>( std::cout ),
+        std::back_insert_iterator<std::string>( buffer ),
         input.begin(),
-        input.end(),
+        input.end  (),
         main_regex,
         formatter()
     );
 }
+
+//------------------------------------------------------------------------------
+} // namespace boost
+//------------------------------------------------------------------------------

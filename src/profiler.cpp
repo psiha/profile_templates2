@@ -14,25 +14,41 @@
 ///
 ////////////////////////////////////////////////////////////////////////////////
 //------------------------------------------------------------------------------
-#include "profiler.hpp"
+#undef BOOST_ENABLE_ASSERT_HANDLER
+
+#include "filter.hpp"
+#include "postprocess.hpp"
+#include "preprocess.hpp"
+
+#include "boost/assert.hpp"
+#include "boost/config.hpp"
+
+// POSIX implementation
+#ifdef BOOST_HAS_UNISTD_H
+    #include "sys/stat.h"
+    #include "unistd.h"
+#else
+    #include "io.h"
+#endif // BOOST_HAS_UNISTD_H
+#include "fcntl.h"
+#include "sys/stat.h"
+#include "sys/types.h"
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <exception>
+#include "process.h"
+#include <string>
 //------------------------------------------------------------------------------
 namespace boost
 {
 //------------------------------------------------------------------------------
 
-#undef BOOST_ENABLE_ASSERT_HANDLER
-
-#include <cstdio>
-#include <cstdlib>
-#include <exception>
-#include "process.h"
-
 extern "C"
 int main( int const argc, char const * const argv[] )
 {
-    for ( unsigned i( 0 ); i < argc; ++i )
-        std::puts( argv[ i ] );
-    if ( argc != ( 1 + 3 ) )
+    if ( argc != ( 1 + 4 ) )
     {
         std::puts
         (
@@ -41,23 +57,67 @@ int main( int const argc, char const * const argv[] )
             "profiler\n"
                 "\t<compiler binary path>\n"
                 "\t<compiler response file with options to build the target source with>\n"
-                "\t<source to profile>."
+                "\t<source to profile>\n"
+                "\t<result file name>."
         );
         return EXIT_FAILURE;
     }
 
-    {
-        char const * const compiler_argv[] = { "-E", argv[ 3 ], NULL };
-        int const result( /*std*/::execv( argv[ 1 ], compiler_argv ) );
-        if ( result != 0 )
-        {
-            std::puts( "Failed generating compiler preprocessed file." );
-            return EXIT_FAILURE;
-        }
-    }
+    char const * const compiler_binary       ( argv[ 1 ] );
+    char const * const compiler_response_file( argv[ 2 ] );
+    char const * const source_to_profile     ( argv[ 3 ] );
+    char const * const result_file           ( argv[ 4 ] );
 
     try
     {
+
+        static char const compiler_preprocessed_file[] = "template_profiler.compiler_preprocessed.i";
+
+        {
+            std::string const full_command_line( std::string( compiler_binary ) + " " + source_to_profile + " @" + compiler_response_file + " -E > " + compiler_preprocessed_file );
+            int const result( /*std*/::system( full_command_line.c_str() ) );
+            if ( result != 0 )
+            {
+                std::puts( "Failed generating compiler preprocessed file." );
+                return EXIT_FAILURE;
+            }
+        }
+
+        static char const prepared_file_to_compile[] = "template_profiler.preprocessed.cpp";
+        {
+            std::string preprocessed_input;
+            preprocess     ( compiler_preprocessed_file, preprocessed_input );
+            std::string filtered_input;
+            copy_call_graph( preprocessed_input, filtered_input );
+
+            int const file_id( /*std*/::open( prepared_file_to_compile, O_CREAT | O_WRONLY, S_IREAD | S_IWRITE ) );
+            if ( file_id < 0 )
+            {
+                std::puts( "Failed creating an intermediate file." );
+                return EXIT_FAILURE;
+            }
+            int const write_result( /*std*/::write( file_id, &filtered_input[ 0 ], filtered_input.size() ) );
+            BOOST_VERIFY( /*std*/::close( file_id ) == 0 );
+            if ( write_result < 0 )
+            {
+                std::puts( "Failed writing to an intermediate file." );
+                return EXIT_FAILURE;
+            }
+        }
+
+        static char const final_compiler_output[] = "template_profiler.final_compiler_output.txt";
+        {
+            std::string const full_command_line( std::string( compiler_binary ) + " " + prepared_file_to_compile + " @" + compiler_response_file + " > " + final_compiler_output );
+            int const result( /*std*/::system( full_command_line.c_str() ) );
+            if ( result != 0 )
+            {
+                std::puts( "Failed compiling an intermediate file." );
+                return EXIT_FAILURE;
+            }
+        }
+
+        postprocess( final_compiler_output, result_file );
+
         return EXIT_SUCCESS;
     }
     catch ( std::exception const & e )

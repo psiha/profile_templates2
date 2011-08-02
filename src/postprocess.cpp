@@ -15,6 +15,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //------------------------------------------------------------------------------
 #undef BOOST_ENABLE_ASSERT_HANDLER
+//...zzz...#define BOOST_REGEX_USE_C_LOCALE
 
 #include "postprocess.hpp"
 
@@ -25,7 +26,6 @@
 #include <boost/ptr_container/ptr_vector.hpp>
 
 #include <string>
-#include <iostream>
 #include <fstream>
 #include <map>
 #include <set>
@@ -72,6 +72,8 @@ boost::regex split_file_and_line("(.*):(\\d+)");
 
 #endif
 
+std::ofstream output;
+
 struct print {
     int* cummulative;
     int width;
@@ -79,7 +81,7 @@ struct print {
     template<class T>
     void operator()(const T& t) {
         *cummulative += t.second;
-        std::cout << std::setw(width) << t.first << std::setw(10) << t.second << std::setw(10) << *cummulative << std::endl;
+        output << std::setw(width) << t.first << std::setw(10) << t.second << std::setw(10) << *cummulative << std::endl;
     }
 };
 
@@ -166,21 +168,16 @@ private:
     node root;
 };
 
-int postprocess(int argc, char** argv) {
-    const char* input_file_name = 0;
-    bool use_call_graph = false;
-    for(int i = 1; i < argc; ++i) {
-        if(std::strcmp(argv[i], "--call-graph") == 0) {
-            use_call_graph = true;
-        } else {
-            input_file_name = argv[i];
-        }
-    }
-    if(input_file_name == 0) {
-        std::cerr << "Usage: " << argv[0] << " <input file>\n";
-        return(EXIT_FAILURE);
-    }
 
+void postprocess
+(
+    char const * const input_file_name,
+    char const * const output_file_name
+)
+{
+    bool const use_call_graph( true );
+
+    output.open( output_file_name );
 
     std::map<std::string, int> messages;
     std::string line;
@@ -199,10 +196,10 @@ int postprocess(int argc, char** argv) {
     }
     std::vector<std::pair<std::string, int> > copy(messages.begin(), messages.end());
     std::sort(copy.begin(), copy.end(), compare());
-    std::cout << "Total instantiations: " << total_matches << std::endl;
+    output << "Total instantiations: " << total_matches << std::endl;
     int cummulative = 0;
-    std::cout << std::setw(max_match_length) << "Location" << std::setw(10) << "count" << std::setw(10) << "cum." << std::endl;
-    std::cout << std::setfill('-') << std::setw(max_match_length + 20) << '-' << std::setfill(' ') << std::endl;
+    output << std::setw(max_match_length) << "Location" << std::setw(10) << "count" << std::setw(10) << "cum." << std::endl;
+    output << std::setfill('-') << std::setw(max_match_length + 20) << '-' << std::setfill(' ') << std::endl;
     print p = { &cummulative, max_match_length };
     std::for_each(copy.begin(), copy.end(), p);
 
@@ -282,17 +279,17 @@ int postprocess(int argc, char** argv) {
         std::vector<call_graph_node_t> call_graph;
         std::copy(graph.begin(), graph.end(), std::back_inserter(call_graph));
         std::sort(call_graph.begin(), call_graph.end(), call_graph_less());
-        std::cout << "\nCall Graph\n\n";
+        output << "\nCall Graph\n\n";
         BOOST_FOREACH(const call_graph_node_t& node, call_graph) {
-            std::cout << print_line_id(node.first) << " (" << node.second.count << ")\n";
+            output << print_line_id(node.first) << " (" << node.second.count << ")\n";
             typedef std::map<const line_id*, int>::const_reference node_t;
-            std::cout << "  Parents:\n";
+            output << "  Parents:\n";
             BOOST_FOREACH(node_t n, node.second.parents) {
-                std::cout << "    " << print_line_id(n.first) << " (" << n.second << ")\n";
+                output << "    " << print_line_id(n.first) << " (" << n.second << ")\n";
             }
-            std::cout << "  Children:\n";
+            output << "  Children:\n";
             BOOST_FOREACH(node_t n, node.second.children) {
-                std::cout << "    " << print_line_id(n.first) << " (" << n.second << "/" << graph[n.first].count << ")\n";
+                output << "    " << print_line_id(n.first) << " (" << n.second << "/" << graph[n.first].count << ")\n";
             }
         }
     }
