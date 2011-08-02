@@ -64,6 +64,7 @@ function(template_profile target src)
 
     if ( NOT EXISTS ${CMAKE_CXX_COMPILER} )
         if ( MSVC )
+            #http://web.archiveorange.com/archive/v/5y7PkgJS75BcD7zzR0t4
             get_filename_component( devenv_path ${CMAKE_MAKE_PROGRAM} PATH )
             set( full_compiler_path "${devenv_path}/../../VC/bin/${CMAKE_CXX_COMPILER}" )
             file( TO_NATIVE_PATH ${full_compiler_path} full_compiler_path )
