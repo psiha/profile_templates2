@@ -15,11 +15,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 //------------------------------------------------------------------------------
 #undef BOOST_ENABLE_ASSERT_HANDLER
-//...zzz...#define BOOST_REGEX_USE_C_LOCALE
+#define BOOST_XPRESSIVE_USE_C_TRAITS
 
 #include "postprocess.hpp"
 
-#include <boost/regex.hpp>
+#include "boost/xpressive/xpressive.hpp"
 #include <boost/foreach.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/numeric/conversion/cast.hpp>
@@ -39,38 +39,42 @@ namespace boost
 {
 //------------------------------------------------------------------------------
 
-#ifdef _MSC_VER
+namespace expressions
+{
+    using namespace boost::xpressive;
+    #ifdef _MSC_VER
 
-#pragma warning(disable:4512)
+        #pragma warning(disable:4512)
 
-boost::regex enter_message("(.*) : warning C4150: deletion of pointer to incomplete type 'template_profiler::incomplete_enter'; no destructor called");
-boost::regex exit_message("(.*) : warning C4150: deletion of pointer to incomplete type 'template_profiler::incomplete_exit'; no destructor called");
-boost::regex call_graph_line("        (.*)\\((\\d+)\\) : see reference to .*");
-boost::regex split_file_and_line("(.*)\\((\\d+)\\)");
+        sregex const enter_message      ( (*~_n) >> " : warning C4150: deletion of pointer to incomplete type 'template_profiler::incomplete_enter'; no destructor called" );
+        sregex const exit_message       ( (*~_n) >> " : warning C4150: deletion of pointer to incomplete type 'template_profiler::incomplete_exit'; no destructor called"  );
+        sregex const call_graph_line    ( "        " >> (*~_n) >> '(' >> +_d >> ')' >> " : see reference to " >> (*~_n) );
+        sregex const split_file_and_line( (*~_n) >> '(' >> +_d >> ')' );
 
-#elif defined(__GNUC__)
+    #elif defined(__GNUC__)
 
-#if (__GNUC__ < 4) || (__GNUC_MINOR__ < 3)
+        #if (__GNUC__ < 4) || (__GNUC_MINOR__ < 3)
 
-boost::regex enter_message("(.*): warning: division by zero in .template_profiler::enter_value / 0.");
-boost::regex exit_message("(.*): warning: division by zero in .template_profiler::exit_value / 0.");
-boost::regex call_graph_line("(.*):(\\d+):   instantiated from .*");
-boost::regex split_file_and_line("(.*):(\\d+)");
+            sregex const enter_message      ("(.*): warning: division by zero in .template_profiler::enter_value / 0.");
+            sregex const exit_message       ("(.*): warning: division by zero in .template_profiler::exit_value / 0.");
+            sregex const call_graph_line    ("(.*):(\\d+):   instantiated from .*");
+            sregex const split_file_and_line("(.*):(\\d+)");
 
-#else
+        #else
 
-boost::regex enter_message("(.*): warning: .+int template_profiler::enter\\(int\\).*");
-boost::regex exit_message("(.*): warning: .+int template_profiler::exit\\(int\\).*");
-boost::regex call_graph_line("(.*):(\\d+):   instantiated from .*");
-boost::regex split_file_and_line("(.*):(\\d+)");
+            sregex const enter_message      ("(.*): warning: .+int template_profiler::enter\\(int\\).*");
+            sregex const exit_message       ("(.*): warning: .+int template_profiler::exit\\(int\\).*");
+            sregex const call_graph_line    ("(.*):(\\d+):   instantiated from .*");
+            sregex const split_file_and_line("(.*):(\\d+)");
 
-#endif
+        #endif
 
-#else
+    #else
 
-#error Unknown Compiler
+        #error Unknown Compiler
 
-#endif
+    #endif
+} // namespace expressions
 
 std::ofstream output;
 
@@ -186,8 +190,8 @@ void postprocess
     {
         std::ifstream input(input_file_name);
         while(std::getline(input, line)) {
-            boost::smatch match;
-            if(boost::regex_match(line, match, enter_message)) {
+            boost::xpressive::smatch match;
+            if(boost::xpressive::regex_match(line, match, expressions::enter_message)) {
                 max_match_length = (std::max)(max_match_length, boost::numeric_cast<int>(match[1].length()));
                 ++messages[match[1]];
                 ++total_matches;
@@ -210,8 +214,8 @@ void postprocess
         std::set<line_id> lines;
         typedef std::pair<std::string, int> raw_line;
         BOOST_FOREACH(const raw_line& l, messages) {
-            boost::smatch match;
-            boost::regex_match(l.first, match, split_file_and_line);
+            boost::xpressive::smatch match;
+            boost::xpressive::regex_match(l.first, match, expressions::split_file_and_line);
             lines.insert(line_id(match[1], boost::lexical_cast<int>(match[2].str())));
         }
         const line_id* current_instantiation = 0;
@@ -219,21 +223,21 @@ void postprocess
 #if defined(_MSC_VER)
         // msvc puts the warning first and follows it with the backtrace.
         while(std::getline(input, line)) {
-            boost::smatch match;
-            if(boost::regex_match(line, match, enter_message)) {
+            boost::xpressive::smatch match;
+            if(boost::xpressive::regex_match(line, match, expressions::enter_message)) {
                 // commit the current instantiation
                 if(current_instantiation) {
                     state.add_instantiation(current_instantiation, backtrace_depth);
                 }
                 // start a new instantiation
                 std::string file_and_line(match[1].str());
-                boost::regex_match(file_and_line, match, split_file_and_line);
+                boost::xpressive::regex_match(file_and_line, match, expressions::split_file_and_line);
                 std::string file = match[1];
                 int line = boost::lexical_cast<int>(match[2].str());
                 current_instantiation = &*lines.find(line_id(file, line));
-            } else if(boost::regex_match(line, match, call_graph_line)) {
+            } else if(boost::xpressive::regex_match(line, match, expressions::call_graph_line)) {
                 ++backtrace_depth;
-            } else if(boost::regex_match(line, match, exit_message)) {
+            } else if(boost::xpressive::regex_match(line, match, expressions::exit_message)) {
                 // commit the current instantiation
                 if(current_instantiation) {
                     state.add_instantiation(current_instantiation, backtrace_depth);
@@ -253,10 +257,10 @@ void postprocess
 #elif defined(__GNUC__)
         // gcc puts the backtrace first, and then the warning.
         while(std::getline(input, line)) {
-            boost::smatch match;
-            if(boost::regex_match(line, match, enter_message)) {
+            boost::xpressive::smatch match;
+            if(boost::xpressive::regex_match(line, match, expressions::enter_message)) {
                 std::string file_and_line(match[1].str());
-                boost::regex_match(file_and_line, match, split_file_and_line);
+                boost::xpressive::regex_match(file_and_line, match, expressions::split_file_and_line);
                 std::string file = match[1];
                 int line = boost::lexical_cast<int>(match[2].str());
                 current_instantiation = &*lines.find(line_id(file, line));
@@ -264,9 +268,9 @@ void postprocess
                 std::cerr << backtrace_depth << std::endl;
                 state.add_instantiation(current_instantiation, backtrace_depth);
                 backtrace_depth = 0;
-            } else if(boost::regex_match(line, match, call_graph_line)) {
+            } else if(boost::xpressive::regex_match(line, match, expressions::call_graph_line)) {
                 ++backtrace_depth;
-            } else if(boost::regex_match(line, match, exit_message)) {
+            } else if(boost::xpressive::regex_match(line, match, expressions::exit_message)) {
                 state.finish_instantiation();
                 backtrace_depth = 0;
             }
