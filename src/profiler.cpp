@@ -24,11 +24,13 @@
 #include "boost/config.hpp"
 
 // POSIX implementation
-#ifdef BOOST_HAS_UNISTD_H
-    #include "sys/stat.h"
+#if defined( BOOST_HAS_UNISTD_H )
     #include "unistd.h"
-#else
+#elif defined( BOOST_MSVC )
+    #pragma warning ( disable : 4996 ) // "The POSIX name for this item is deprecated. Instead, use the ISO C++ conformant name."
     #include "io.h"
+#else
+    #error unknown or no POSIX implementation
 #endif // BOOST_HAS_UNISTD_H
 #include "fcntl.h"
 #include "sys/stat.h"
@@ -86,11 +88,11 @@ int main( int const argc, char const * const argv[] )
         static char const prepared_file_to_compile[] = "template_profiler.preprocessed.cpp";
         {
             std::string preprocessed_input;
+            std::string filtered_input    ;
             preprocess     ( compiler_preprocessed_file, preprocessed_input );
-            std::string filtered_input;
-            copy_call_graph( preprocessed_input, filtered_input );
+            copy_call_graph( preprocessed_input        , filtered_input     );
 
-            int const file_id( /*std*/::open( prepared_file_to_compile, O_CREAT | O_WRONLY, S_IREAD | S_IWRITE ) );
+            int const file_id( /*std*/::open( prepared_file_to_compile, O_CREAT | O_TRUNC | O_WRONLY, S_IREAD | S_IWRITE ) );
             if ( file_id < 0 )
             {
                 std::puts( "Failed creating an intermediate file." );

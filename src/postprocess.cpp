@@ -181,7 +181,7 @@ void postprocess
 {
     bool const use_call_graph( true );
 
-    output.open( output_file_name );
+    output.open( output_file_name, std::ios_base::trunc );
 
     std::map<std::string, int> messages;
     std::string line;
