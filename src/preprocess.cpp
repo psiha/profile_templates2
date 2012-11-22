@@ -3,8 +3,8 @@
 /// \file preprocess.cpp
 /// --------------------
 ///
-/// Copyright (c) 2008.-2009. Steven Watanabe (preprocess.pl)
-/// Copyright (c) 2011.       Domagoj Saric
+/// Copyright (c) 2008-2009 Steven Watanabe (preprocess.pl)
+/// Copyright (c) 2011-2012 Domagoj Saric
 ///
 ///  Use, modification and distribution is subject to the
 ///  Boost Software License, Version 1.0.
@@ -17,6 +17,7 @@
 //------------------------------------------------------------------------------
 #undef BOOST_ENABLE_ASSERT_HANDLER
 
+#define BOOST_DATE_TIME_NO_LIB
 #define BOOST_XPRESSIVE_USE_C_TRAITS
 
 #include "preprocess.hpp"

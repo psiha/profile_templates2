@@ -4,7 +4,7 @@
 /// ---------------
 ///
 /// Copyright (c) 2008-2009 Steven Watanabe
-/// Copyright (c) 2011      Domagoj Saric
+/// Copyright (c) 2011-2012 Domagoj Saric
 ///
 ///  Use, modification and distribution is subject to the Boost Software License, Version 1.0.
 ///  (See accompanying file LICENSE_1_0.txt or copy at
@@ -15,24 +15,26 @@
 ////////////////////////////////////////////////////////////////////////////////
 //------------------------------------------------------------------------------
 #undef BOOST_ENABLE_ASSERT_HANDLER
+
+#define BOOST_DATE_TIME_NO_LIB
 #define BOOST_XPRESSIVE_USE_C_TRAITS
 
 #include "postprocess.hpp"
 
 #include "boost/xpressive/xpressive.hpp"
-#include <boost/foreach.hpp>
-#include <boost/lexical_cast.hpp>
-#include <boost/numeric/conversion/cast.hpp>
-#include <boost/ptr_container/ptr_vector.hpp>
+#include "boost/foreach.hpp"
+#include "boost/lexical_cast.hpp"
+#include "boost/numeric/conversion/cast.hpp"
+#include "boost/ptr_container/ptr_vector.hpp"
 
-#include <string>
+#include <algorithm>
+#include <exception>
 #include <fstream>
+#include <iomanip>
+#include <iterator>
 #include <map>
 #include <set>
-#include <exception>
-#include <iterator>
-#include <algorithm>
-#include <iomanip>
+#include <string>
 #include <vector>
 //------------------------------------------------------------------------------
 namespace boost
